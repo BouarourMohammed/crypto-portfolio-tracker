@@ -1,0 +1,513 @@
+diff --git a/node_modules/react-native-graph/lib/commonjs/AnimatedLineGraph.js b/node_modules/react-native-graph/lib/commonjs/AnimatedLineGraph.js
+index dd9628d..a41e0d9 100644
+--- a/node_modules/react-native-graph/lib/commonjs/AnimatedLineGraph.js
++++ b/node_modules/react-native-graph/lib/commonjs/AnimatedLineGraph.js
+@@ -329,7 +329,7 @@ function AnimatedLineGraph(_ref) {
+     style: [styles.container, axisLabelContainerStyle]
+   }, TopAxisLabel != null && /*#__PURE__*/_react.default.createElement(_reactNative.View, {
+     style: styles.axisRow
+-  }, /*#__PURE__*/_react.default.createElement(TopAxisLabel, null)), /*#__PURE__*/_react.default.createElement(_reactNative.View, {
++  }, /*#__PURE__*/_react.default.createElement(TopAxisLabel, {width:width})), /*#__PURE__*/_react.default.createElement(_reactNative.View, {
+     style: styles.container,
+     onLayout: onLayout
+   }, /*#__PURE__*/_react.default.createElement(_reactNativeSkia.Canvas, {
+@@ -383,7 +383,7 @@ function AnimatedLineGraph(_ref) {
+     color: color
+   })))), BottomAxisLabel != null && /*#__PURE__*/_react.default.createElement(_reactNative.View, {
+     style: styles.axisRow
+-  }, /*#__PURE__*/_react.default.createElement(BottomAxisLabel, null)))));
++  }, /*#__PURE__*/_react.default.createElement(BottomAxisLabel, {width:width})))));
+ }
+ 
+ const styles = _reactNative.StyleSheet.create({
+diff --git a/node_modules/react-native-graph/lib/module/AnimatedLineGraph.js b/node_modules/react-native-graph/lib/module/AnimatedLineGraph.js
+index 7384892..adfcbd8 100644
+--- a/node_modules/react-native-graph/lib/module/AnimatedLineGraph.js
++++ b/node_modules/react-native-graph/lib/module/AnimatedLineGraph.js
+@@ -305,7 +305,7 @@ export function AnimatedLineGraph(_ref) {
+     style: [styles.container, axisLabelContainerStyle]
+   }, TopAxisLabel != null && /*#__PURE__*/React.createElement(View, {
+     style: styles.axisRow
+-  }, /*#__PURE__*/React.createElement(TopAxisLabel, null)), /*#__PURE__*/React.createElement(View, {
++  }, /*#__PURE__*/React.createElement(TopAxisLabel, {width:width})), /*#__PURE__*/React.createElement(View, {
+     style: styles.container,
+     onLayout: onLayout
+   }, /*#__PURE__*/React.createElement(Canvas, {
+@@ -359,7 +359,7 @@ export function AnimatedLineGraph(_ref) {
+     color: color
+   })))), BottomAxisLabel != null && /*#__PURE__*/React.createElement(View, {
+     style: styles.axisRow
+-  }, /*#__PURE__*/React.createElement(BottomAxisLabel, null)))));
++  }, /*#__PURE__*/React.createElement(BottomAxisLabel, {width:width})))));
+ }
+ const styles = StyleSheet.create({
+   svg: {
+diff --git a/node_modules/react-native-graph/lib/typescript/LineGraphProps.d.ts b/node_modules/react-native-graph/lib/typescript/LineGraphProps.d.ts
+index 24e96f2..c9b18d1 100644
+--- a/node_modules/react-native-graph/lib/typescript/LineGraphProps.d.ts
++++ b/node_modules/react-native-graph/lib/typescript/LineGraphProps.d.ts
+@@ -16,6 +16,15 @@ export interface SelectionDotProps {
+     circleY: SharedValue<number>;
+ }
+ interface BaseLineGraphProps extends ViewProps {
++    /**
++     * If true, will use natural corners for the curve
++     * Will use tension factor to control curve smoothness
++     */
++    enableNaturalCorners?: boolean 
++    /**  
++     * Use tension factor to control curve smoothness (0.25 gives a good balance)
++     */
++    tension?: number
+     /**
+      * All points to be marked in the graph. Coordinate system will adjust to scale automatically.
+      */
+@@ -93,11 +102,12 @@ export declare type AnimatedLineGraphProps = BaseLineGraphProps & {
+     /**
+      * The element that gets rendered above the Graph (usually the "max" point/value of the Graph)
+      */
+-    TopAxisLabel?: () => React.ReactElement | null;
++    TopAxisLabel?: ({width}: {width: number}) => React.ReactElement | null
++
+     /**
+      * The element that gets rendered below the Graph (usually the "min" point/value of the Graph)
+      */
+-    BottomAxisLabel?: () => React.ReactElement | null;
++    BottomAxisLabel?: ({width}: {width: number}) => React.ReactElement | null
+ };
+ export declare type LineGraphProps = ({
+     animated: true;
+diff --git a/node_modules/react-native-graph/src/AnimatedLineGraph.tsx b/node_modules/react-native-graph/src/AnimatedLineGraph.tsx
+index bee225a..a871def 100644
+--- a/node_modules/react-native-graph/src/AnimatedLineGraph.tsx
++++ b/node_modules/react-native-graph/src/AnimatedLineGraph.tsx
+@@ -55,6 +55,8 @@ export function AnimatedLineGraph({
+   color,
+   gradientFillColors,
+   lineThickness = 3,
++  enableNaturalCorners = false,
++  tension = 0.25,
+   range,
+   enableFadeInMask,
+   enablePanGesture = false,
+@@ -196,6 +198,8 @@ export function AnimatedLineGraph({
+       verticalPadding,
+       canvasHeight: height,
+       canvasWidth: width,
++      enableNaturalCorners,
++      tension,
+     }
+ 
+     if (shouldFillGradient) {
+@@ -458,7 +462,7 @@ export function AnimatedLineGraph({
+           {/* Top Label (max price) */}
+           {TopAxisLabel != null && (
+             <View style={styles.axisRow}>
+-              <TopAxisLabel />
++              <TopAxisLabel width={width} />
+             </View>
+           )}
+ 
+@@ -542,7 +546,7 @@ export function AnimatedLineGraph({
+           {/* Bottom Label (min price) */}
+           {BottomAxisLabel != null && (
+             <View style={styles.axisRow}>
+-              <BottomAxisLabel />
++              <BottomAxisLabel width={width} />
+             </View>
+           )}
+         </Reanimated.View>
+diff --git a/node_modules/react-native-graph/src/CreateGraphPath.ts b/node_modules/react-native-graph/src/CreateGraphPath.ts
+index 67e9a2e..818d676 100644
+--- a/node_modules/react-native-graph/src/CreateGraphPath.ts
++++ b/node_modules/react-native-graph/src/CreateGraphPath.ts
+@@ -19,6 +19,15 @@ export interface GraphPathRange {
+ }
+ 
+ type GraphPathConfig = {
++  /**
++   * If true, will use natural corners for the curve
++   * Will use tension factor to control curve smoothness
++   */
++  enableNaturalCorners?: boolean 
++  /**  
++   * Use tension factor to control curve smoothness (0.25 gives a good balance)
++  */
++  tension?: number
+   /**
+    * Graph Points to use for the Path. Will be normalized and centered.
+    */
+@@ -127,12 +136,135 @@ export const getPointsInRange = (
+ 
+ type GraphPathWithGradient = { path: SkPath; gradientPath: SkPath }
+ 
+-function createGraphPathBase(
+-  props: GraphPathConfigWithGradient
+-): GraphPathWithGradient
+-function createGraphPathBase(props: GraphPathConfigWithoutGradient): SkPath
++function createGraphPathBaseStickyPoints({
++  pointsInRange: graphData,
++  range,
++  horizontalPadding,
++  verticalPadding,
++  canvasHeight: height,
++  canvasWidth: width,
++  shouldFillGradient,
++  tension = 0.25,
++}: GraphPathConfigWithGradient | GraphPathConfigWithoutGradient):
++  | SkPath
++  | GraphPathWithGradient {
++  const path = Skia.Path.Make();
++
++  // Canvas width subtracted by the horizontal padding => Actual drawing width
++  const drawingWidth = width - 2 * horizontalPadding;
++  // Canvas height subtracted by the vertical padding => Actual drawing height
++  const drawingHeight = height - 2 * verticalPadding;
++
++  if (graphData.length === 0) return path;
++
++  const points: SkPoint[] = [];
++
++  // const startX =
++  //   getXInRange(drawingWidth, graphData[0]!.date, range.x) + horizontalPadding;
++  const endX =
++    getXInRange(drawingWidth, graphData[graphData.length - 1]!.date, range.x) +
++    horizontalPadding;
++
++  // First, collect all points that need to be plotted
++  for (let i = 0; i < graphData.length; i++) {
++    const point = graphData[i]!;
++    const x = getXInRange(drawingWidth, point.date, range.x) + horizontalPadding;
++    const y =
++      drawingHeight -
++      getYInRange(drawingHeight, point.value, range.y) +
++      verticalPadding;
+     
+-function createGraphPathBase({
++    points.push({ x, y });
++  }
++
++  // Now draw the path using the collected points
++  if (points.length > 0) {
++    // Start the path at the first point
++    path.moveTo(points[0]!.x, points[0]!.y);
++
++    if (points.length === 1) {
++      // If there's only one point, just draw it
++      path.lineTo(points[0]!.x, points[0]!.y);
++    } else {
++      // Use cubic Bezier curves to create smooth transitions between points
++      for (let i = 1; i < points.length; i++) {
++        const current = points[i]!;
++        const previous = points[i - 1]!;
++        
++        if (i === 1) {
++          // Special handling for the first curve segment
++          const nextPoint = points[i + 1] || current;
++          
++          // Calculate control points for smooth curve beginning
++          const controlX1 = previous.x + (current.x - previous.x) / 3;
++          const controlY1 = previous.y + (current.y - previous.y) / 3;
++          
++          const controlX2 = previous.x + 2 * (current.x - previous.x) / 3;
++          const controlY2 = previous.y + 2 * (current.y - previous.y) / 3;
++
++          path.cubicTo(
++            controlX1,
++            controlY1,
++            controlX2,
++            controlY2,
++            current.x,
++            current.y
++          );
++        } else if (i === points.length - 1) {
++          // Special handling for the last curve segment
++          const controlX1 = previous.x + (current.x - previous.x) / 3;
++          const controlY1 = previous.y + (current.y - previous.y) / 3;
++          
++          const controlX2 = previous.x + 2 * (current.x - previous.x) / 3;
++          const controlY2 = previous.y + 2 * (current.y - previous.y) / 3;
++
++          path.cubicTo(
++            controlX1,
++            controlY1,
++            controlX2,
++            controlY2,
++            current.x,
++            current.y
++          );
++        } else {
++          // Calculate control points for middle segments
++          const prevDeltaX = current.x - previous.x;
++          const prevDeltaY = current.y - previous.y;
++          
++          const nextPoint = points[i + 1]!;
++          const nextDeltaX = nextPoint.x - current.x;
++          const nextDeltaY = nextPoint.y - current.y;
++          
++          const controlX1 = previous.x + prevDeltaX * tension;
++          const controlY1 = previous.y + prevDeltaY * tension;
++          
++          const controlX2 = current.x - nextDeltaX * tension;
++          const controlY2 = current.y - nextDeltaY * tension;
++
++          path.cubicTo(
++            controlX1,
++            controlY1,
++            controlX2,
++            controlY2,
++            current.x,
++            current.y
++          );
++        }
++      }
++    }
++  }
++
++  if (!shouldFillGradient) return path;
++
++  const gradientPath = path.copy();
++  gradientPath.lineTo(endX, height + verticalPadding);
++  gradientPath.lineTo(horizontalPadding, height + verticalPadding);
++  gradientPath.close();
++
++  return { path: path, gradientPath: gradientPath };
++}
++
++function createGraphPathBaseSmooth({
+   pointsInRange: graphData,
+   range,
+   horizontalPadding,
+@@ -140,108 +272,127 @@ function createGraphPathBase({
+   canvasHeight: height,
+   canvasWidth: width,
+   shouldFillGradient,
++  tension,
+ }: GraphPathConfigWithGradient | GraphPathConfigWithoutGradient):
+   | SkPath
+   | GraphPathWithGradient {
+-  const path = Skia.Path.Make()
++  const path = Skia.Path.Make();
+ 
+-  // Canvas width substracted by the horizontal padding => Actual drawing width
+-  const drawingWidth = width - 2 * horizontalPadding
+-  // Canvas height substracted by the vertical padding => Actual drawing height
+-  const drawingHeight = height - 2 * verticalPadding
++  const drawingWidth = width - 2 * horizontalPadding;
++  const drawingHeight = height - 2 * verticalPadding;
+ 
+-  if (graphData[0] == null) return path
++  if (graphData.length === 0) return path;
+ 
+-  const points: SkPoint[] = []
++  const points: SkPoint[] = [];
+ 
+   const startX =
+-    getXInRange(drawingWidth, graphData[0]!.date, range.x) + horizontalPadding
++    getXInRange(drawingWidth, graphData[0]!.date, range.x) + horizontalPadding;
+   const endX =
+     getXInRange(drawingWidth, graphData[graphData.length - 1]!.date, range.x) +
+-    horizontalPadding
++    horizontalPadding;
+ 
++  // Collect points with the original x-coordinate calculation
+   const getGraphDataIndex = (pixel: number) =>
+-    Math.round(((pixel - startX) / (endX - startX)) * (graphData.length - 1))
++    Math.round(((pixel - startX) / (endX - startX)) * (graphData.length - 1));
+ 
+   const getNextPixelValue = (pixel: number) => {
+-    if (pixel === endX || pixel + PIXEL_RATIO < endX) return pixel + PIXEL_RATIO
+-    return endX
+-  }
++    if (pixel === endX || pixel + PIXEL_RATIO < endX) return pixel + PIXEL_RATIO;
++    return endX;
++  };
+ 
+   for (
+     let pixel = startX;
+     startX <= pixel && pixel <= endX;
+     pixel = getNextPixelValue(pixel)
+   ) {
+-    const index = getGraphDataIndex(pixel)
++    const index = getGraphDataIndex(pixel);
+ 
+     // Draw first point only on the very first pixel
+-    if (index === 0 && pixel !== startX) continue
++    if (index === 0 && pixel !== startX) continue;
+     // Draw last point only on the very last pixel
+-
+-    if (index === graphData.length - 1 && pixel !== endX) continue
++    if (index === graphData.length - 1 && pixel !== endX) continue;
+ 
+     if (index !== 0 && index !== graphData.length - 1) {
+-      // Only draw point, when the point is exact
++      // Only draw point when the point is exact
+       const exactPointX =
+         getXInRange(drawingWidth, graphData[index]!.date, range.x) +
+-        horizontalPadding
++        horizontalPadding;
+ 
+       const isExactPointInsidePixelRatio = Array(PIXEL_RATIO)
+         .fill(0)
+         .some((_value, additionalPixel) => {
+-          return pixel + additionalPixel === exactPointX
+-        })
++          return pixel + additionalPixel === exactPointX;
++        });
+ 
+-      if (!isExactPointInsidePixelRatio) continue
++      if (!isExactPointInsidePixelRatio) continue;
+     }
+ 
+-    const value = graphData[index]!.value
++    const value = graphData[index]!.value;
+     const y =
+       drawingHeight -
+       getYInRange(drawingHeight, value, range.y) +
+-      verticalPadding
++      verticalPadding;
+ 
+-    points.push({ x: pixel, y: y })
++    points.push({ x: pixel, y: y });
+   }
+ 
++  // Draw the path using the original smoothing algorithm
+   for (let i = 0; i < points.length; i++) {
+-    const point = points[i]!
+-
+-    // first point needs to start the path
+-    if (i === 0) path.moveTo(point.x, point.y)
++    const point = points[i]!;
+ 
+-    const prev = points[i - 1]
+-    const prevPrev = points[i - 2]
++    // First point starts the path
++    if (i === 0) {
++      path.moveTo(point.x, point.y);
++      continue;
++    }
+ 
+-    if (prev == null) continue
++    const prev = points[i - 1]!;
++    const prevPrev = points[i - 2];
+ 
+-    const p0 = prevPrev ?? prev
+-    const p1 = prev
+-    const cp1x = (2 * p0.x + p1.x) / 3
+-    const cp1y = (2 * p0.y + p1.y) / 3
+-    const cp2x = (p0.x + 2 * p1.x) / 3
+-    const cp2y = (p0.y + 2 * p1.y) / 3
+-    const cp3x = (p0.x + 4 * p1.x + point.x) / 6
+-    const cp3y = (p0.y + 4 * p1.y + point.y) / 6
++    // Calculate control points using the original algorithm
++    const p0 = prevPrev ?? prev;
++    const p1 = prev;
++    const cp1x = (2 * p0.x + p1.x) / 3;
++    const cp1y = (2 * p0.y + p1.y) / 3;
++    const cp2x = (p0.x + 2 * p1.x) / 3;
++    const cp2y = (p0.y + 2 * p1.y) / 3;
++    const cp3x = (p0.x + 4 * p1.x + point.x) / 6;
++    const cp3y = (p0.y + 4 * p1.y + point.y) / 6;
+ 
+-    path.cubicTo(cp1x, cp1y, cp2x, cp2y, cp3x, cp3y)
++    path.cubicTo(cp1x, cp1y, cp2x, cp2y, cp3x, cp3y);
+ 
++    // Handle the last point
+     if (i === points.length - 1) {
+-      path.cubicTo(point.x, point.y, point.x, point.y, point.x, point.y)
++      path.cubicTo(point.x, point.y, point.x, point.y, point.x, point.y);
+     }
+   }
+ 
+-  if (!shouldFillGradient) return path
++  if (!shouldFillGradient) return path;
+ 
+-  const gradientPath = path.copy()
++  const gradientPath = path.copy();
++  gradientPath.lineTo(endX, height + verticalPadding);
++  gradientPath.lineTo(horizontalPadding, height + verticalPadding);
++  gradientPath.close();
+ 
+-  gradientPath.lineTo(endX, height + verticalPadding)
+-  gradientPath.lineTo(0 + horizontalPadding, height + verticalPadding)
+-
+-  return { path: path, gradientPath: gradientPath }
++  return { path: path, gradientPath: gradientPath };
+ }
+ 
++function createGraphPathBase(
++  props: GraphPathConfigWithGradient
++): GraphPathWithGradient
++function createGraphPathBase(props: GraphPathConfigWithoutGradient): SkPath
++
++
++
++function createGraphPathBase({enableNaturalCorners, ...props}:  GraphPathConfigWithGradient | GraphPathConfigWithoutGradient): SkPath
++  | GraphPathWithGradient {
++  if (enableNaturalCorners) {
++    return createGraphPathBaseStickyPoints(props);
++  } else {
++    return createGraphPathBaseSmooth(props);
++  }
++  
++}
+ export function createGraphPath(props: GraphPathConfig): SkPath {
+   return createGraphPathBase({ ...props, shouldFillGradient: false })
+ }
+diff --git a/node_modules/react-native-graph/src/LineGraphProps.ts b/node_modules/react-native-graph/src/LineGraphProps.ts
+index 21e147f..401c278 100644
+--- a/node_modules/react-native-graph/src/LineGraphProps.ts
++++ b/node_modules/react-native-graph/src/LineGraphProps.ts
+@@ -20,6 +20,15 @@ export interface SelectionDotProps {
+ }
+ 
+ interface BaseLineGraphProps extends ViewProps {
++  /**
++   * If true, will use natural corners for the curve
++   * Will use tension factor to control curve smoothness
++  */
++  enableNaturalCorners?: boolean 
++  /**  
++   * Use tension factor to control curve smoothness (0.25 gives a good balance)
++  */
++  tension?: number
+   /**
+    * All points to be marked in the graph. Coordinate system will adjust to scale automatically.
+    */
+@@ -103,12 +112,12 @@ export type AnimatedLineGraphProps = BaseLineGraphProps & {
+   /**
+    * The element that gets rendered above the Graph (usually the "max" point/value of the Graph)
+    */
+-  TopAxisLabel?: () => React.ReactElement | null
++  TopAxisLabel?: ({width}: {width: number}) => React.ReactElement | null
+ 
+   /**
+    * The element that gets rendered below the Graph (usually the "min" point/value of the Graph)
+    */
+-  BottomAxisLabel?: () => React.ReactElement | null
++  BottomAxisLabel?: ({width}: {width: number}) => React.ReactElement | null
+ }
+ 
+ export type LineGraphProps =
+diff --git a/node_modules/react-native-graph/src/StaticLineGraph.tsx b/node_modules/react-native-graph/src/StaticLineGraph.tsx
+index 5790400..8d9e1c6 100644
+--- a/node_modules/react-native-graph/src/StaticLineGraph.tsx
++++ b/node_modules/react-native-graph/src/StaticLineGraph.tsx
+@@ -16,6 +16,8 @@ export function StaticLineGraph({
+   color,
+   lineThickness = 3,
+   enableFadeInMask,
++  enableNaturalCorners = false,
++  tension = 0.25,
+   style,
+   ...props
+ }: StaticLineGraphProps): React.ReactElement {
+@@ -49,6 +51,8 @@ export function StaticLineGraph({
+         canvasWidth: width,
+         horizontalPadding: lineThickness,
+         verticalPadding: lineThickness,
++        enableNaturalCorners,
++        tension,
+       }),
+     [height, lineThickness, pathRange, pointsInRange, width]
+   )
