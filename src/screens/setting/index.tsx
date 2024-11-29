@@ -25,6 +25,7 @@ import { PriceNotification } from "@/screens/home/hooks/useNotification";
 const currencies = ["USDT", "BTC", "ETH", "DOGE"];
 const comparators = [">", "<", ">=", "<="];
 
+// TODO : split the screen into sub components each section in isolated component
 const SettingScreen: React.FC = () => {
   const navigation = useNavigation();
   const { currency } = useActiveCurrency();

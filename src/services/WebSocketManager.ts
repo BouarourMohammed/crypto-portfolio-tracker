@@ -1,7 +1,6 @@
 import { COIN_API_KEY } from "@/constants";
 import { setGlobalState } from "@/hooks/useGlobalState";
-import { ExchangeRateData, TradeData } from "@/types/coinAPI";
-import { debounce } from "@/utils";
+import { ExchangeRateData } from "@/types/coinAPI";
 
 interface WebSocketManagerOptions {
   maxRetries?: number;
@@ -61,7 +60,6 @@ export class WebSocketManager {
   private setupEventListeners(): void {
     if (!this.ws) return;
     this.ws.onopen = (event: WebSocketEventMap["open"]): void => {
-      console.log("Connected to WebSocket");
       const initMessage = getApiCoinWsMessage("hello", [
         { assetId: "", currency: "" },
       ]);
@@ -80,7 +78,6 @@ export class WebSocketManager {
         }
         this.retryCount = 0;
         this.retryDelay = this.options.initialRetryDelay;
-        console.log("data", data);
         const assetPairKey = `${data.asset_id_base}_${data.asset_id_quote}`;
         setGlobalState(assetPairKey, data.rate);
         this.onNewValueSubscription
@@ -98,7 +95,6 @@ export class WebSocketManager {
     };
 
     this.ws.onclose = (event: WebSocketCloseEvent): void => {
-      console.log("WebSocket connection closed:", event.code, event.reason);
       if (!this.isIntentionallyClosed) {
         this.scheduleReconnection();
       }
@@ -122,7 +118,6 @@ export class WebSocketManager {
         })`
       );
       this.retryCount = this.retryCount + 1;
-      console.log("--------------- > Reconnecting in", this.retryCount);
       this.connect();
 
       // Implement exponential backoff with max delay
@@ -208,8 +203,6 @@ export class WebSocketManager {
       "subscribe",
       filteredAssets
     );
-    console.log("  --------------subscribe", subscriptionMessage);
-
     this.ws?.send(subscriptionMessage);
     filteredAssets.forEach(({ assetId, currency }) => {
       this.subscriptions[assetId] = currency;
@@ -284,9 +277,6 @@ export class WebSocketManager {
     );
     // subscribe to the new subscriptions
     this.subscribe(newSubscriptions);
-    console.log("restoreSubscriptions", this.subscriptions);
-    // this.unsubscribeAll();
-    // this.subscribe(assets);
   }
 
   public restoreSubscriptions() {
@@ -327,7 +317,6 @@ export class WebSocketManager {
     );
     // clean up the cached subscriptions
     this.cachedSubscriptions = null;
-    console.log("restoreSubscriptions", this.subscriptions);
   }
 
   // Get connection status

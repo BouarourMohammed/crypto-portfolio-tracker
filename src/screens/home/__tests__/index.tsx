@@ -14,6 +14,7 @@ jest.setTimeout(10000);
 
 jest.mock("@/api/CoinapiHooks", () => {
   // Partially mock the module, keeping other hooks intact
+  // this hook will be used to get the assets data
   const actualHooks = jest.requireActual("@/api/CoinapiHooks");
   return {
     ...actualHooks,
@@ -40,18 +41,14 @@ describe("Home", () => {
       isLoading: false,
       isError: false,
     });
-    // useAssetPriceHistory.mockReturnValue({
-    //   data: historyPrice24Data,
-    //   isLoading: false,
-    //   isError: false,
-    // });
-    // map the data for splash screen
-    // Nock intercept with a dynamic response
+
+    // map the history data for the assets
     nock(COIN_API_ENDPOINT)
       .get(new RegExp(`/exchangerate/.*/.*/history`)) // Match any assetId and currency
       .delay(1000)
       .query(true) // Accept any query parameters
       .reply(200, historyPrice24Data);
+
     const { unmount, getByTestId, getByText } = render(
       <RootNavigator initialRouteName={"Home"} />
     );
@@ -73,7 +70,7 @@ describe("Home", () => {
     fireEvent.press(getByTestId("backButton"));
     await waitFor(() => expect(getByTestId("homeScreen")).toBeOnTheScreen());
     // press the withdraw button
-
+    //...
     unmount();
   });
 });
